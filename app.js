@@ -1,10 +1,11 @@
 // --- CONFIGURATION ---
 const OMDB_API_KEY = "7ee6529c"; 
-const BASE_URL = "https://www.omdbapi.com/"; // Fixed URL
+const BASE_URL = "https://www.omdbapi.com/";
 
 // --- STATE MANAGEMENT ---
 let state = {
-    dailyQueue: [],
+    dailyQueue: JSON.parse(localStorage.getItem('flixmix_queue')) || [],
+    queueDate: localStorage.getItem('flixmix_date') || "",
     history: JSON.parse(localStorage.getItem('flixmix_history')) || [],
     pickedMovie: JSON.parse(localStorage.getItem('flixmix_picked')) || null
 };
@@ -14,7 +15,15 @@ window.addEventListener('load', () => {
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    state.pickedMovie ? showReviewScreen() : startDailyDiscovery();
+    const today = new Date().toDateString();
+    
+    if (state.pickedMovie) {
+        showReviewScreen();
+    } else if (state.dailyQueue.length > 0 && state.queueDate === today) {
+        renderStack();
+    } else {
+        startDailyDiscovery();
+    }
 });
 
 // --- FETCHING LOGIC ---
@@ -26,23 +35,27 @@ async function startDailyDiscovery() {
     try {
         const res = await fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`);
         const data = await res.json();
-
         if (data.Response === "False") throw new Error(data.Error);
 
-        // Fetch details & filter in one pipeline
-        const moviePromises = data.Search.slice(0, 8).map(m => 
+        const moviePromises = data.Search.slice(0, 10).map(m => 
             fetch(`${BASE_URL}?i=${m.imdbID}&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
 
         const detailed = await Promise.all(moviePromises);
 
+        // Filter and save
         state.dailyQueue = detailed
             .filter(m => parseFloat(m.imdbRating) >= 7.0 && !state.history.includes(m.imdbID))
             .slice(0, 5);
+        
+        state.queueDate = new Date().toDateString();
+        
+        localStorage.setItem('flixmix_queue', JSON.stringify(state.dailyQueue));
+        localStorage.setItem('flixmix_date', state.queueDate);
 
         renderStack();
     } catch (err) {
-        container.innerHTML = `<div class="error">Limit reached or Connection Error. <br> <small>${err.message}</small></div>`;
+        container.innerHTML = `<div class="error">Connection Error. <br> <small>${err.message}</small></div>`;
     }
 }
 
@@ -52,15 +65,15 @@ function renderStack() {
     container.innerHTML = '';
 
     if (state.dailyQueue.length === 0) {
-        container.innerHTML = '<div class="loading">Refining search...</div>';
-        startDailyDiscovery(); 
+        container.innerHTML = '<div class="loading">Daily limit reached! Come back tomorrow.</div>';
         return;
     }
 
+    // We use a copy to render so that index 0 is at the bottom, last index on top
     state.dailyQueue.forEach((movie, index) => {
         const card = document.createElement('div');
         card.className = 'movie-card';
-        card.style.zIndex = state.dailyQueue.length - index;
+        card.style.zIndex = index; // Last item has highest Z-index
         
         const poster = movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/500x750?text=No+Poster";
 
@@ -71,10 +84,15 @@ function renderStack() {
                 <p>⭐ IMDb: ${movie.imdbRating} | ${movie.Genre}</p>
             </div>
             <div class="card-actions">
-                <button onclick="handleSwipe(false)">✖</button>
-                <button onclick="handleSwipe(true)">✔</button>
+                <button class="cross-btn">✖</button>
+                <button class="check-btn">✔</button>
             </div>
         `;
+
+        // Manual listeners to ensure correct movie reference
+        card.querySelector('.cross-btn').onclick = () => handleSwipe(false);
+        card.querySelector('.check-btn').onclick = () => handleSwipe(true);
+        
         container.appendChild(card);
     });
 }
@@ -88,7 +106,9 @@ function handleSwipe(isMatch) {
     topCard.classList.add(isMatch ? 'swipe-right-anim' : 'swipe-left-anim');
 
     topCard.addEventListener('animationend', () => {
+        // pop() gets the item that was visually on top
         const movie = state.dailyQueue.pop(); 
+        localStorage.setItem('flixmix_queue', JSON.stringify(state.dailyQueue));
 
         if (isMatch) {
             state.pickedMovie = movie;
@@ -96,7 +116,7 @@ function handleSwipe(isMatch) {
             showReviewScreen();
         } else {
             updateHistory(movie.imdbID);
-            state.dailyQueue.length === 0 ? startDailyDiscovery() : renderStack();
+            renderStack(); // Just re-render what's left
         }
     }, { once: true });
 }
@@ -112,52 +132,31 @@ function showReviewScreen() {
     document.getElementById('discovery-view').classList.add('hidden');
     document.getElementById('review-view').classList.remove('hidden');
     document.getElementById('review-title').innerText = `How was ${state.pickedMovie.Title}?`;
+    
+    // Reset star inputs for new review
+    document.querySelectorAll('input[name="star"]').forEach(input => input.checked = false);
 }
 
 function submitReview() {
-    updateHistory(state.pickedMovie.imdbID);
-    state.pickedMovie = null;
-    localStorage.removeItem('flixmix_picked');
+    if (state.pickedMovie) {
+        updateHistory(state.pickedMovie.imdbID);
+        state.pickedMovie = null;
+        localStorage.removeItem('flixmix_picked');
+    }
 
     document.getElementById('review-view').classList.add('hidden');
     document.getElementById('discovery-view').classList.remove('hidden');
-    startDailyDiscovery();
+    renderStack();
 }
 
-// --- PWA REGISTRATION ---
-// Updated PWA Registration Logic
+// --- PWA Logic ---
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-        // Check for updates every time the app loads
-        reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    // This shows the banner only when a new version is actually ready
-                    document.getElementById('update-banner').classList.add('show');
-                }
-            };
-        };
-    });
-
-    // This part is CRUCIAL: It reloads the page once the new SW takes over
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-            window.location.reload();
-            refreshing = true;
-        }
-    });
+    navigator.serviceWorker.register('./sw.js');
 }
 
 function handleUpdate() {
     navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg.waiting) {
-            // Tells the new service worker to move from 'waiting' to 'active'
-            reg.waiting.postMessage({ action: 'skipWaiting' });
-        } else {
-            // Fallback if the button is clicked but no worker is waiting
-            window.location.reload();
-        }
+        if (reg.waiting) reg.waiting.postMessage({ action: 'skipWaiting' });
+        window.location.reload();
     });
 }
