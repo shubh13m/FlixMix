@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flixmix-v9';
+const CACHE_NAME = 'flixmix-v10';
 const ASSETS = [
   './',
   './index.html',
