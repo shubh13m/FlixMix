@@ -12,11 +12,9 @@ let state = {
 
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
-    // Setup Review Button
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    // Setup Toggle Buttons (Fixed logic for Material Light)
     document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.onclick = function() {
             this.classList.toggle('active');
@@ -24,9 +22,13 @@ window.addEventListener('load', () => {
         };
     });
 
+    // LISTEN FOR SERVICE WORKER UPDATES
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload(); // This ensures the app reloads when the new SW takes over
+    });
+
     const today = new Date().toDateString();
     
-    // Check state and route to correct view
     if (state.pickedMovie) {
         showReviewScreen();
     } else if (state.dailyQueue.length > 0 && state.queueDate === today) {
@@ -47,17 +49,14 @@ async function startDailyDiscovery() {
     try {
         const res = await fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`);
         const data = await res.json();
-        
         if (data.Response === "False") throw new Error(data.Error);
 
-        // Fetch details for the first 10 results to get ratings
         const moviePromises = data.Search.slice(0, 10).map(m => 
             fetch(`${BASE_URL}?i=${m.imdbID}&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
 
         const detailed = await Promise.all(moviePromises);
 
-        // Filter: High ratings (>= 7.0) and not in history
         state.dailyQueue = detailed
             .filter(m => {
                 const rating = parseFloat(m.imdbRating);
@@ -66,24 +65,15 @@ async function startDailyDiscovery() {
             })
             .slice(0, 5);
         
-        // If query was too restrictive, grab any highly rated ones or fallback
-        if (state.dailyQueue.length === 0) {
-             state.dailyQueue = detailed.slice(0, 5);
-        }
+        if (state.dailyQueue.length === 0) state.dailyQueue = detailed.slice(0, 5);
         
         state.queueDate = new Date().toDateString();
-        
         localStorage.setItem('flixmix_queue', JSON.stringify(state.dailyQueue));
         localStorage.setItem('flixmix_date', state.queueDate);
 
         renderStack();
     } catch (err) {
-        console.error(err);
-        container.innerHTML = `
-            <div class="error">
-                <p>Connection Error</p>
-                <button onclick="startDailyDiscovery()" class="gold-btn" style="width:auto; padding:10px 20px;">Retry</button>
-            </div>`;
+        container.innerHTML = `<div class="error"><p>Error loading movies</p></div>`;
     }
 }
 
@@ -93,19 +83,15 @@ function renderStack() {
     container.innerHTML = '';
 
     if (state.dailyQueue.length === 0) {
-        container.innerHTML = `
-            <div class="loading">
-                <h3>All caught up!</h3>
-                <p>Check back tomorrow for a fresh mix.</p>
-            </div>`;
+        container.innerHTML = `<div class="loading"><h3>All caught up!</h3></div>`;
         return;
     }
 
+    // We render the queue. The last item in the array will be the "top" card.
     state.dailyQueue.forEach((movie, index) => {
         const card = document.createElement('div');
         card.className = 'movie-card';
-        // Material depth: higher cards have higher z-index
-        card.style.zIndex = state.dailyQueue.length - index; 
+        card.style.zIndex = index; // Higher index = on top
         
         const poster = movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/500x750?text=No+Poster";
 
@@ -113,32 +99,28 @@ function renderStack() {
             <img src="${poster}" alt="${movie.Title}" class="movie-poster">
             <div class="movie-info">
                 <h3>${movie.Title}</h3>
-                <p>⭐ ${movie.imdbRating} | ${movie.Genre} | ${movie.Year}</p>
+                <p>⭐ ${movie.imdbRating} | ${movie.Genre}</p>
             </div>
             <div class="card-actions">
-                <button class="cross-btn" aria-label="Skip">✖</button>
-                <button class="check-btn" aria-label="Watch">✔</button>
+                <button class="cross-btn" onclick="handleSwipe(false)">✖</button>
+                <button class="check-btn" onclick="handleSwipe(true)">✔</button>
             </div>
         `;
-
-        card.querySelector('.cross-btn').onclick = () => handleSwipe(false);
-        card.querySelector('.check-btn').onclick = () => handleSwipe(true);
-        
         container.appendChild(card);
     });
 }
 
 // --- INTERACTION LOGIC ---
 function handleSwipe(isMatch) {
-    const cards = document.getElementsByClassName('movie-card');
+    const cards = document.querySelectorAll('.movie-card');
     if (cards.length === 0) return;
 
-    // The "top" card is the last one appended or the one with highest z-index
-    // Our logic renders them all; the one at index length-1 is top visually
+    // The visually "top" card is the one with the highest z-index (the last one in DOM)
     const topCard = cards[cards.length - 1];
     topCard.classList.add(isMatch ? 'swipe-right-anim' : 'swipe-left-anim');
 
     topCard.addEventListener('animationend', () => {
+        // ALWAYS remove the last item from state to match the top card
         const movie = state.dailyQueue.pop(); 
         localStorage.setItem('flixmix_queue', JSON.stringify(state.dailyQueue));
 
@@ -148,9 +130,21 @@ function handleSwipe(isMatch) {
             showReviewScreen();
         } else {
             updateHistory(movie.imdbID, { id: movie.imdbID, title: movie.Title, skipped: true });
-            renderStack();
+            renderStack(); // Redraw remaining cards
         }
     }, { once: true });
+}
+
+// --- PWA / UPDATE LOGIC ---
+function handleUpdate() {
+    navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg && reg.waiting) {
+            reg.waiting.postMessage({ action: 'skipWaiting' });
+            // The controllerchange listener at the top will handle the reload
+        } else {
+            window.location.reload();
+        }
+    });
 }
 
 function showReviewScreen() {
@@ -158,7 +152,6 @@ function showReviewScreen() {
     document.getElementById('review-view').classList.remove('hidden');
     document.getElementById('review-title').innerText = `How was ${state.pickedMovie.Title}?`;
     
-    // Reset UI
     document.querySelectorAll('input[name="star"]').forEach(input => input.checked = false);
     document.querySelectorAll('.toggle-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -168,26 +161,18 @@ function showReviewScreen() {
 
 function submitReview() {
     const ratingInput = document.querySelector('input[name="star"]:checked');
-    if (!ratingInput) {
-        alert("Please select a star rating!");
-        return;
-    }
-
-    const rating = ratingInput.value;
-    const isFamily = document.getElementById('btn-family').classList.contains('active');
-    const isRepeat = document.getElementById('btn-repeat').classList.contains('active');
+    if (!ratingInput) return alert("Please select a star rating!");
 
     const reviewData = {
         id: state.pickedMovie.imdbID,
         title: state.pickedMovie.Title,
-        userRating: parseInt(rating),
-        familyFriendly: isFamily,
-        repeatWatch: isRepeat,
+        userRating: parseInt(ratingInput.value),
+        familyFriendly: document.getElementById('btn-family').classList.contains('active'),
+        repeatWatch: document.getElementById('btn-repeat').classList.contains('active'),
         date: new Date().toLocaleDateString()
     };
 
     updateHistory(state.pickedMovie.imdbID, reviewData);
-    
     state.pickedMovie = null;
     localStorage.removeItem('flixmix_picked');
 
@@ -197,56 +182,31 @@ function submitReview() {
 }
 
 function updateHistory(id, data) {
-    // Prevent duplicate history entries
     state.history = state.history.filter(h => h.id !== id);
     state.history.push(data);
     localStorage.setItem('flixmix_history', JSON.stringify(state.history));
 }
 
-// --- PWA LOGIC ---
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(err => console.error("SW error:", err));
-}
-
-function handleUpdate() {
-    navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg && reg.waiting) reg.waiting.postMessage({ action: 'skipWaiting' });
-        window.location.reload();
-    });
-}
-
 function toggleHistory(show) {
     const historySection = document.getElementById('history-view');
-    if (show) {
-        renderHistory();
-        historySection.classList.remove('hidden');
-    } else {
-        historySection.classList.add('hidden');
-    }
+    if (show) { renderHistory(); historySection.classList.remove('hidden'); }
+    else { historySection.classList.add('hidden'); }
 }
 
 function renderHistory() {
     const list = document.getElementById('history-list');
     list.innerHTML = '';
-
     const reviews = state.history.filter(h => h.userRating);
-
     if (reviews.length === 0) {
         list.innerHTML = '<p style="text-align:center; color:#999; margin-top:20px;">No reviews yet.</p>';
         return;
     }
-
     [...reviews].reverse().forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
         div.innerHTML = `
-            <div class="history-info">
-                <h4>${item.title}</h4>
-                <p>${item.date} ${item.familyFriendly ? '| 👨‍👩‍👧' : ''}</p>
-            </div>
-            <div class="history-badge">
-                ${'★'.repeat(item.userRating)}${'☆'.repeat(5 - item.userRating)}
-            </div>
+            <div class="history-info"><h4>${item.title}</h4><p>${item.date}</p></div>
+            <div class="history-badge">${'★'.repeat(item.userRating)}</div>
         `;
         list.appendChild(div);
     });
