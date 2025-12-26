@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flixmix-v8';
+const CACHE_NAME = 'flixmix-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +24,8 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  // ADD THIS LINE: It tells the new SW to take control of the page immediately
+  return self.clients.claim(); 
 });
 
 // Fetch: Smart caching
