@@ -1,5 +1,6 @@
 // --- CONFIGURATION ---
 const OMDB_API_KEY = "7ee6529c"; 
+const BASE_URL = "https://www.omdbapi.com/"; // Fixed URL
 
 // --- STATE MANAGEMENT ---
 let state = {
@@ -10,46 +11,38 @@ let state = {
 
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
-    // Setup Review Button Listener
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    if (state.pickedMovie) {
-        showReviewScreen();
-    } else {
-        startDailyDiscovery();
-    }
+    state.pickedMovie ? showReviewScreen() : startDailyDiscovery();
 });
 
 // --- FETCHING LOGIC ---
 async function startDailyDiscovery() {
     const container = document.getElementById('card-container');
     const keywords = ["Man", "Love", "Space", "Dark", "World", "Time", "Life", "Action", "Night"];
-    const randomKeyword = keywords[Math.floor(Math.random() * keywords.length)];
+    const query = keywords[Math.floor(Math.random() * keywords.length)];
 
     try {
-        const searchResponse = await fetch(`https://www.omdbapi.com/?s=${randomKeyword}&type=movie&apikey=${OMDB_API_KEY}`);
-        const searchData = await searchResponse.json();
+        const res = await fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`);
+        const data = await res.json();
 
-        if (searchData.Response === "False") throw new Error(searchData.Error);
+        if (data.Response === "False") throw new Error(data.Error);
 
-        // Fetch full details for ratings
-        const moviePromises = searchData.Search.slice(0, 8).map(m => 
-            fetch(`https://www.omdbapi.com/?i=${m.imdbID}&apikey=${OMDB_API_KEY}`).then(res => res.json())
+        // Fetch details & filter in one pipeline
+        const moviePromises = data.Search.slice(0, 8).map(m => 
+            fetch(`${BASE_URL}?i=${m.imdbID}&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
 
-        const detailedMovies = await Promise.all(moviePromises);
+        const detailed = await Promise.all(moviePromises);
 
-        // Filter for high ratings and exclude history
-        state.dailyQueue = detailedMovies
+        state.dailyQueue = detailed
             .filter(m => parseFloat(m.imdbRating) >= 7.0 && !state.history.includes(m.imdbID))
             .slice(0, 5);
 
         renderStack();
-
-    } catch (error) {
-        console.error("OMDb Error:", error);
-        container.innerHTML = `<div class="error">Error: ${error.message}. Try refreshing.</div>`;
+    } catch (err) {
+        container.innerHTML = `<div class="error">Limit reached or Connection Error. <br> <small>${err.message}</small></div>`;
     }
 }
 
@@ -59,8 +52,8 @@ function renderStack() {
     container.innerHTML = '';
 
     if (state.dailyQueue.length === 0) {
-        container.innerHTML = '<div class="error">Finding more movies...</div>';
-        setTimeout(startDailyDiscovery, 1500);
+        container.innerHTML = '<div class="loading">Refining search...</div>';
+        startDailyDiscovery(); 
         return;
     }
 
@@ -74,7 +67,7 @@ function renderStack() {
         card.innerHTML = `
             <img src="${poster}" alt="${movie.Title}" class="movie-poster">
             <div class="movie-info">
-                <h3 class="movie-title">${movie.Title} (${movie.Year})</h3>
+                <h3>${movie.Title} (${movie.Year})</h3>
                 <p>⭐ IMDb: ${movie.imdbRating} | ${movie.Genre}</p>
             </div>
             <div class="card-actions">
@@ -92,11 +85,8 @@ function handleSwipe(isMatch) {
     if (cards.length === 0) return;
 
     const topCard = cards[cards.length - 1];
-    
-    // Trigger CSS Animations
     topCard.classList.add(isMatch ? 'swipe-right-anim' : 'swipe-left-anim');
 
-    // Wait for animation to finish (0.5s)
     topCard.addEventListener('animationend', () => {
         const movie = state.dailyQueue.pop(); 
 
@@ -105,17 +95,17 @@ function handleSwipe(isMatch) {
             localStorage.setItem('flixmix_picked', JSON.stringify(movie));
             showReviewScreen();
         } else {
-            // Save ID to history to avoid seeing it again
-            state.history.push(movie.imdbID);
-            localStorage.setItem('flixmix_history', JSON.stringify(state.history));
-            
-            if (state.dailyQueue.length === 0) {
-                startDailyDiscovery(); // Get more if queue is empty
-            } else {
-                renderStack(); 
-            }
+            updateHistory(movie.imdbID);
+            state.dailyQueue.length === 0 ? startDailyDiscovery() : renderStack();
         }
     }, { once: true });
+}
+
+function updateHistory(id) {
+    if (!state.history.includes(id)) {
+        state.history.push(id);
+        localStorage.setItem('flixmix_history', JSON.stringify(state.history));
+    }
 }
 
 function showReviewScreen() {
@@ -125,36 +115,16 @@ function showReviewScreen() {
 }
 
 function submitReview() {
-    // Here we clear the picked movie so the user can discover again
-    state.history.push(state.pickedMovie.imdbID);
-    localStorage.setItem('flixmix_history', JSON.stringify(state.history));
-    
+    updateHistory(state.pickedMovie.imdbID);
     state.pickedMovie = null;
     localStorage.removeItem('flixmix_picked');
 
-    // Reset UI
     document.getElementById('review-view').classList.add('hidden');
     document.getElementById('discovery-view').classList.remove('hidden');
-    
     startDailyDiscovery();
 }
 
-// --- PWA UPDATES ---
+// --- PWA REGISTRATION ---
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').then(reg => {
-        reg.onupdatefound = () => {
-            const installingWorker = reg.installing;
-            installingWorker.onstatechange = () => {
-                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    document.getElementById('update-banner').classList.add('show');
-                }
-            };
-        };
-    });
-}
-
-function handleUpdate() {
-    navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg.waiting) reg.waiting.postMessage({ action: 'skipWaiting' });
-    });
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
 }
