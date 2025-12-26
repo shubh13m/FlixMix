@@ -1,12 +1,11 @@
 const CACHE_NAME = 'flixmix-v1';
 const ASSETS = [
-  '/FlixMix/',
-  '/FlixMix/index.html',
-  '/FlixMix/styles.css',
-  '/FlixMix/app.js',
-  '/FlixMix/manifest.json'
+  './',
+  './index.html',
+  './styles.css',
+  './app.js',
+  './manifest.json'
 ];
-
 // Install: Cache core files
 self.addEventListener('install', (event) => {
   event.waitUntil(
