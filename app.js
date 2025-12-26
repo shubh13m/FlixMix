@@ -183,3 +183,41 @@ function handleUpdate() {
         window.location.reload();
     });
 }
+
+function toggleHistory(show) {
+    const historySection = document.getElementById('history-view');
+    if (show) {
+        renderHistory();
+        historySection.classList.remove('hidden');
+    } else {
+        historySection.classList.add('hidden');
+    }
+}
+
+function renderHistory() {
+    const list = document.getElementById('history-list');
+    list.innerHTML = '';
+
+    // Filter out 'skipped' entries and show only reviewed ones
+    const reviews = state.history.filter(h => h.userRating);
+
+    if (reviews.length === 0) {
+        list.innerHTML = '<p style="text-align:center; color:#666;">No reviews yet. Start swiping!</p>';
+        return;
+    }
+
+    reviews.reverse().forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'history-item';
+        div.innerHTML = `
+            <div class="history-info">
+                <h4>${item.title}</h4>
+                <p>${item.date} | Family: ${item.familyFriendly ? '✅' : '❌'}</p>
+            </div>
+            <div class="history-badge">
+                ${'★'.repeat(item.userRating)}${'☆'.repeat(5 - item.userRating)}
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
