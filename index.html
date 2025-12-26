@@ -13,6 +13,17 @@
     </div>
 
     <div id="app">
+        <button id="view-history-btn" onclick="toggleHistory(true)">📜 View My Mixes</button>
+
+        <section id="history-view" class="hidden">
+            <div class="history-header">
+                <h2>Your Watch History</h2>
+                <button onclick="toggleHistory(false)">✕</button>
+            </div>
+            <div id="history-list">
+                </div>
+        </section>
+        
         <section id="discovery-view">
             <div id="card-container">
                 <div class="loading">Preparing your mix...</div>
