@@ -125,6 +125,39 @@ function submitReview() {
 }
 
 // --- PWA REGISTRATION ---
+// Updated PWA Registration Logic
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(console.error);
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+        // Check for updates every time the app loads
+        reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    // This shows the banner only when a new version is actually ready
+                    document.getElementById('update-banner').classList.add('show');
+                }
+            };
+        };
+    });
+
+    // This part is CRUCIAL: It reloads the page once the new SW takes over
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+            window.location.reload();
+            refreshing = true;
+        }
+    });
+}
+
+function handleUpdate() {
+    navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg.waiting) {
+            // Tells the new service worker to move from 'waiting' to 'active'
+            reg.waiting.postMessage({ action: 'skipWaiting' });
+        } else {
+            // Fallback if the button is clicked but no worker is waiting
+            window.location.reload();
+        }
+    });
 }
