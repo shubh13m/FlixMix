@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flixmix-v11';
+const CACHE_NAME = 'flixmix-v12'; // Updated version
 const ASSETS = [
   './',
   './index.html',
@@ -24,26 +24,37 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  // ADD THIS LINE: It tells the new SW to take control of the page immediately
   return self.clients.claim(); 
 });
 
-// Fetch: Smart caching
+// Fetch: Network-First for UI, Network-Only for API
 self.addEventListener('fetch', (event) => {
-  // For API calls, try network first, don't cache
-  if (event.request.url.includes('omdbapi.com')) {
+  const url = event.request.url;
+
+  // 1. API Calls: Always try network, do not cache search results 
+  // (to keep the "random" feel fresh)
+  if (url.includes('omdbapi.com')) {
     event.respondWith(fetch(event.request));
     return;
   }
 
-  // For UI assets, use cache-first
+  // 2. UI Assets: Network-First Strategy
+  // This ensures your light theme and app logic updates show up immediately
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    fetch(event.request)
+      .then((response) => {
+        // Update the cache with the fresh version
+        const resClone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        return response;
+      })
+      .catch(() => caches.match(event.request)) // If offline, use cache
   );
 });
 
+// Handle the "Update Now" button click from app.js
 self.addEventListener('message', (event) => {
-  if (event.data.action === 'skipWaiting') self.skipWaiting();
+  if (event.data.action === 'skipWaiting') {
+    self.skipWaiting();
+  }
 });
