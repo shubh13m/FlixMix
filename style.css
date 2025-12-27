@@ -323,3 +323,54 @@ input:checked + .slider:before {
 .history-header h2 { margin: 0; font-weight: 800; color: var(--primary); }
 .history-header button { background: none; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer; }
 .update-overlay { position: fixed; inset: 0; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(12px); z-index: 9999; display: flex; align-items: center; justify-content: center; text-align: center; }
+
+/* --- SPLASH SCREEN STYLES --- */
+#splash-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--background);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.5s ease-out, visibility 0.5s;
+}
+
+.splash-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Reusing your logo styles here; ensure .logo is defined as discussed */
+
+.loader-bar {
+    width: 140px;
+    height: 4px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 10px;
+    margin-top: 20px;
+    overflow: hidden;
+    position: relative;
+}
+
+.loader-progress {
+    width: 40%;
+    height: 100%;
+    background: var(--primary);
+    border-radius: 10px;
+    position: absolute;
+    animation: loader-slide 1.5s infinite ease-in-out;
+}
+
+@keyframes loader-slide {
+    0% { left: -40%; }
+    100% { left: 100%; }
+}
+
+/* Class to fade out splash */
+.splash-fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
