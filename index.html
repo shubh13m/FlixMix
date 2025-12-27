@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0a0f1e"> <title>FlixMix</title>
+    <meta name="theme-color" content="#0a0f1e"> 
+    <title>FlixMix</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -54,11 +55,18 @@
                 <div class="questions">
                     <div class="toggle-row">
                         <span>Family Friendly?</span>
-                        <button type="button" id="btn-family" class="toggle-btn">No</button>
+                        <label class="switch">
+                            <input type="checkbox" id="btn-family">
+                            <span class="slider"></span>
+                        </label>
                     </div>
+
                     <div class="toggle-row">
                         <span>Watch Again?</span>
-                        <button type="button" id="btn-repeat" class="toggle-btn">No</button>
+                        <label class="switch">
+                            <input type="checkbox" id="btn-repeat">
+                            <span class="slider"></span>
+                        </label>
                     </div>
                 </div>
 
