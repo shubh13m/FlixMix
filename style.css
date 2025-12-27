@@ -374,3 +374,26 @@ input:checked + .slider:before {
     opacity: 0;
     visibility: hidden;
 }
+
+/* --- HISTORY TAG STYLES --- */
+.history-tags {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.tag {
+    font-size: 0.75rem;
+    background: rgba(98, 0, 238, 0.08); /* Light version of your primary color */
+    color: var(--primary);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    border: 1px solid rgba(98, 0, 238, 0.1);
+}
+
+.history-info p {
+    margin: 2px 0;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+}
