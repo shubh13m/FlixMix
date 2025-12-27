@@ -54,6 +54,7 @@ html, body {
 }
 
 #view-history-btn {
+    /* REMOVED: position: fixed, bottom, left, transform */
     background: var(--surface);
     border: 1px solid var(--border);
     width: 48px;
@@ -66,6 +67,8 @@ html, body {
     cursor: pointer;
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
     transition: transform 0.2s;
+    /* Keeps it in the natural flow of the flex-header */
+    position: relative; 
 }
 
 #view-history-btn:active {
@@ -269,6 +272,27 @@ html, body {
     align-items: center;
     border: 1px solid var(--border);
     box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.history-header h2 {
+    margin: 0;
+    font-weight: 800;
+    color: var(--primary);
+}
+
+.history-header button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-dim);
 }
 
 /* --- UPDATE OVERLAY --- */
