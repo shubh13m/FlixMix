@@ -10,44 +10,43 @@ let state = {
     pickedMovie: JSON.parse(localStorage.getItem('filmyfool_picked')) || null
 };
 
-// Global timer variable to allow cancellation
-let splashTimer;
-
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    // Start splash timer, but store it in a variable
-    splashTimer = setTimeout(hideSplash, 6000);
+    // Start splash timer (Standard 4 seconds for Filmy Fool)
+    setTimeout(hideSplash, 4000);
 
-    // --- SERVICE WORKER REGISTRATION ---
+    // --- SERVICE WORKER & SMART UPDATE LOGIC ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
+            
+            // 1. Polling: Check for updates every 15 minutes automatically
+            setInterval(() => {
+                reg.update();
+                console.log("Filmy Fool: Checking for updates...");
+            }, 1000 * 60 * 15);
+
+            // 2. Detection: Logic when a new service worker is found
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // NEW VERSION DETECTED:
-                        // 1. Clear the timer so the splash screen doesn't hide the banner
-                        clearTimeout(splashTimer);
-                        
-                        // 2. Show the banner
-                        const banner = document.getElementById('update-banner');
-                        if (banner) {
-                            banner.classList.remove('hidden');
-                            banner.style.display = 'flex'; // Force visibility
-                        }
+                        // NEW VERSION DOWNLOADED: Light up the button
+                        showUpdatePulse();
                     }
                 };
             };
         });
 
+        // 3. Reload: Refresh the page once the new SW takes over
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             window.location.reload();
         });
     }
 
+    // --- VIEW ROUTING ---
     const today = new Date().toDateString();
     
     if (state.pickedMovie) {
@@ -61,32 +60,40 @@ window.addEventListener('load', () => {
     }
 });
 
+// --- UPDATE HANDLERS ---
+function showUpdatePulse() {
+    const updateBtn = document.getElementById('update-btn');
+    if (updateBtn) {
+        updateBtn.classList.add('update-available');
+        updateBtn.title = "New features available! Click to update.";
+    }
+}
+
+window.handleUpdateClick = function() {
+    const updateBtn = document.getElementById('update-btn');
+    
+    // Only trigger if the button is lit up (update available)
+    if (updateBtn && updateBtn.classList.contains('update-available')) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg && reg.waiting) {
+                // Send signal to SW to skip waiting and activate
+                reg.waiting.postMessage({ action: 'skipWaiting' });
+            } else {
+                window.location.reload();
+            }
+        });
+    } else {
+        console.log("Filmy Fool is already up to date! ✨");
+    }
+};
+
 // --- HELPER FUNCTIONS ---
 function hideSplash() {
     const splash = document.getElementById('splash-screen');
-    const banner = document.getElementById('update-banner');
-    
-    // IF the update banner is visible, DO NOT hide the splash yet 
-    // or the banner might flicker away
-    if (banner && !banner.classList.contains('hidden')) {
-        return; 
-    }
-
     if (splash && !splash.classList.contains('splash-fade-out')) {
         splash.classList.add('splash-fade-out');
     }
 }
-
-// Fixed Update Handler
-window.handleUpdate = function() {
-    navigator.serviceWorker.getRegistration().then(reg => {
-        if (reg && reg.waiting) {
-            reg.waiting.postMessage({ action: 'skipWaiting' });
-        } else {
-            window.location.reload(true);
-        }
-    });
-};
 
 // --- FETCHING LOGIC ---
 async function startDailyDiscovery() {
