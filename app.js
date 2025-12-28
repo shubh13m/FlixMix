@@ -1,7 +1,7 @@
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
     // Moved inside load so it's visible after a successful update
-    console.log("%c Filmy Fool Version: 1.0.9 ", "color: white; background: #6200ee; padding: 5px; border-radius: 5px; font-weight: bold;");
+    console.log("%c Filmy Fool Version: 1.0.10 ", "color: white; background: #6200ee; padding: 5px; border-radius: 5px; font-weight: bold;");
 
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
