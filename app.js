@@ -4,10 +4,10 @@ const BASE_URL = "https://www.omdbapi.com/";
 
 // --- STATE MANAGEMENT ---
 let state = {
-    dailyQueue: JSON.parse(localStorage.getItem('flixmix_queue')) || [],
-    queueDate: localStorage.getItem('flixmix_date') || "",
-    history: JSON.parse(localStorage.getItem('flixmix_history')) || [],
-    pickedMovie: JSON.parse(localStorage.getItem('flixmix_picked')) || null
+    dailyQueue: JSON.parse(localStorage.getItem('filmyfool_queue')) || [],
+    queueDate: localStorage.getItem('filmyfool_date') || "",
+    history: JSON.parse(localStorage.getItem('filmyfool_history')) || [],
+    pickedMovie: JSON.parse(localStorage.getItem('filmyfool_picked')) || null
 };
 
 // Global timer variable to allow cancellation
