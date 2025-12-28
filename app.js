@@ -1,29 +1,19 @@
-console.log("Filmy Fool Version: 1.0.1");
-// --- CONFIGURATION ---
-const OMDB_API_KEY = "4a4effd2"; 
-const BASE_URL = "https://www.omdbapi.com/";
-
-// --- STATE MANAGEMENT ---
-let state = {
-    dailyQueue: JSON.parse(localStorage.getItem('filmyfool_queue')) || [],
-    queueDate: localStorage.getItem('filmyfool_date') || "",
-    history: JSON.parse(localStorage.getItem('filmyfool_history')) || [],
-    pickedMovie: JSON.parse(localStorage.getItem('filmyfool_picked')) || null
-};
-
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
+    // Moved inside load so it's visible after a successful update
+    console.log("%c Filmy Fool Version: 1.0.7 ", "color: white; background: #6200ee; padding: 5px; border-radius: 5px; font-weight: bold;");
+
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    // Start splash timer (Standard 4 seconds for Filmy Fool)
+    // Start splash timer
     setTimeout(hideSplash, 4000);
 
     // --- SERVICE WORKER & SMART UPDATE LOGIC ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
             
-            // 1. Polling: Check for updates every 15 minutes automatically
+            // 1. Polling: Check for updates every 15 minutes
             setInterval(() => {
                 reg.update();
                 console.log("Filmy Fool: Checking for updates...");
@@ -33,16 +23,24 @@ window.addEventListener('load', () => {
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
+                    // Only show the pulse if it's installed and we already have a controller
                     if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                        // NEW VERSION DOWNLOADED: Light up the button
                         showUpdatePulse();
                     }
                 };
             };
+
+            // Initial check: if there is already a waiting worker on load
+            if (reg.waiting) {
+                showUpdatePulse();
+            }
         });
 
         // 3. Reload: Refresh the page once the new SW takes over
+        let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (refreshing) return;
+            refreshing = true;
             window.location.reload();
         });
     }
@@ -61,6 +59,17 @@ window.addEventListener('load', () => {
     }
 });
 
+// --- STATE MANAGEMENT ---
+let state = {
+    dailyQueue: JSON.parse(localStorage.getItem('filmyfool_queue')) || [],
+    queueDate: localStorage.getItem('filmyfool_date') || "",
+    history: JSON.parse(localStorage.getItem('filmyfool_history')) || [],
+    pickedMovie: JSON.parse(localStorage.getItem('filmyfool_picked')) || null
+};
+
+const OMDB_API_KEY = "4a4effd2"; 
+const BASE_URL = "https://www.omdbapi.com/";
+
 // --- UPDATE HANDLERS ---
 function showUpdatePulse() {
     const updateBtn = document.getElementById('update-btn');
@@ -73,18 +82,18 @@ function showUpdatePulse() {
 window.handleUpdateClick = function() {
     const updateBtn = document.getElementById('update-btn');
     
-    // Only trigger if the button is lit up (update available)
     if (updateBtn && updateBtn.classList.contains('update-available')) {
         navigator.serviceWorker.getRegistration().then(reg => {
             if (reg && reg.waiting) {
-                // Send signal to SW to skip waiting and activate
+                // Tell the waiting worker to skipWaiting
                 reg.waiting.postMessage({ action: 'skipWaiting' });
             } else {
-                window.location.reload();
+                // Fallback: If no worker is waiting but button is glowing, force reload
+                window.location.reload(true);
             }
         });
     } else {
-        console.log("Filmy Fool is already up to date! ✨");
+        console.log("Filmy Fool is up to date! ✨");
     }
 };
 
@@ -99,6 +108,7 @@ function hideSplash() {
 // --- FETCHING LOGIC ---
 async function startDailyDiscovery() {
     const container = document.getElementById('card-container');
+    if (!container) return;
     container.innerHTML = '<div class="loading">Curating your mix...</div>';
     
     const masterKeywords = ["Masterpiece", "Classic", "Noir", "Mystery", "Empire"];
@@ -269,6 +279,7 @@ function toggleHistory(show) {
 
 function renderHistory() {
     const list = document.getElementById('history-list');
+    if (!list) return;
     list.innerHTML = '';
     const ratedMovies = state.history.filter(h => h.userRating !== undefined);
     if (ratedMovies.length === 0) {
