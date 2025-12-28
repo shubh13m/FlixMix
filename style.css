@@ -10,6 +10,7 @@
     --text-dim: #5f6368;
     --border: rgba(0,0,0,0.06);
     --shadow: 0 10px 40px rgba(0,0,0,0.1);
+    --accent-fool: #fbbc04; /* Aligned with star/gold color */
 }
 
 * {
@@ -47,31 +48,35 @@ html, body {
     z-index: 100;
 }
 
+.nav-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
 /* --- ENHANCED LOGO STYLE --- */
 .logo {
-    font-size: 3rem;
+    font-size: 2.2rem; /* Adjusted for header fit */
     font-weight: 900;
     letter-spacing: -1.2px;
     display: flex;
     align-items: center;
-    gap: 2px; /* Tight spacing for a modern look */
+    gap: 2px;
     cursor: default;
     user-select: none;
+    margin: 0;
 }
 
-/* Styles the "Filmy" part */
 .logo span:first-child {
     color: var(--text-main);
 }
 
-/* Styles the "Fool" part with a vibrant gradient */
 .logo span:last-child {
     background: linear-gradient(135deg, var(--primary), #a277ff);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
-/* Adds the accent dot at the end */
 .logo::after {
     content: '';
     width: 6px;
@@ -79,10 +84,11 @@ html, body {
     background-color: var(--secondary);
     border-radius: 50%;
     margin-left: 1px;
-    margin-top: 8px; /* Aligns dot near the baseline */
+    margin-top: 8px;
 }
 
-#view-history-btn {
+/* --- BUTTONS --- */
+#view-history-btn, #update-btn {
     background: var(--surface);
     border: none;
     width: 44px;
@@ -94,6 +100,26 @@ html, body {
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+#update-btn {
+    opacity: 0.3; /* Dimmed by default */
+    box-shadow: none;
+    background: transparent;
+}
+
+#update-btn.update-available {
+    opacity: 1;
+    background: var(--surface);
+    box-shadow: 0 0 15px var(--accent-fool);
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+    0% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-fool)); }
+    50% { transform: scale(1.1); filter: drop-shadow(0 0 10px var(--accent-fool)); }
+    100% { transform: scale(1); filter: drop-shadow(0 0 2px var(--accent-fool)); }
 }
 
 /* --- DISCOVERY VIEW --- */
@@ -163,7 +189,7 @@ html, body {
     font-weight: 500;
 }
 
-/* --- ACTIONS --- */
+/* --- CARD ACTIONS --- */
 .card-actions {
     display: flex;
     justify-content: space-evenly;
@@ -189,7 +215,7 @@ html, body {
 .card-actions .check-btn { color: #34a853; }
 .card-actions button:active { transform: scale(0.9); }
 
-/* --- REVIEW VIEW (Vertical Centering) --- */
+/* --- REVIEW VIEW --- */
 #review-view { 
     height: 100%;
     display: flex;
@@ -211,7 +237,6 @@ html, body {
     margin: 0 auto;
 }
 
-/* --- STAR RATING --- */
 .stars-rating { 
     display: flex; 
     flex-direction: row-reverse; 
@@ -220,7 +245,6 @@ html, body {
 }
 
 .stars-rating input { display: none; }
-
 .stars-rating label { 
     font-size: 2.8rem; 
     color: #e8eaed; 
@@ -235,7 +259,6 @@ html, body {
     color: #fbbc04; 
 }
 
-/* --- SLIDING SWITCH DESIGN --- */
 .toggle-row { 
     display: flex; 
     justify-content: space-between; 
@@ -250,50 +273,36 @@ html, body {
 }
 
 .switch {
-  position: relative;
-  display: inline-block;
-  width: 50px;
-  height: 28px;
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
 }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+.switch input { opacity: 0; width: 0; height: 0; }
 
 .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #e0e0e0;
-  transition: .4s;
-  border-radius: 34px;
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #e0e0e0;
+    transition: .4s;
+    border-radius: 34px;
 }
 
 .slider:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    position: absolute;
+    content: "";
+    height: 20px; width: 20px;
+    left: 4px; bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
 
-input:checked + .slider {
-  background-color: var(--primary);
-}
-
-input:checked + .slider:before {
-  transform: translateX(22px);
-}
+input:checked + .slider { background-color: var(--primary); }
+input:checked + .slider:before { transform: translateX(22px); }
 
 .gold-btn { 
     background: var(--primary); 
@@ -316,30 +325,40 @@ input:checked + .slider:before {
 .swipe-right-anim { animation: swipe-right 0.4s forwards ease-in; }
 .swipe-left-anim { animation: swipe-left 0.4s forwards ease-in; }
 
-/* --- HISTORY & OVERLAYS --- */
-#history-view { position: fixed; inset: 0; background: var(--background); z-index: 1000; display: flex; flex-direction: column; padding: 20px; overflow-y: auto; }
-.history-item { background: var(--surface); margin-bottom: 12px; padding: 15px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border); }
-.history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.history-header h2 { margin: 0; font-weight: 800; color: var(--primary); }
-.history-header button { background: none; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer; }
-.update-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #0a0f1e; /* Dark background to match app */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999; /* Higher than splash screen */
-    text-align: center;
+/* --- HISTORY VIEW --- */
+#history-view { 
+    position: fixed; 
+    inset: 0; 
+    background: var(--background); 
+    z-index: 1000; 
+    display: flex; 
+    flex-direction: column; 
+    padding: 20px; 
+    overflow-y: auto; 
 }
 
-.update-overlay.hidden {
-    display: none !important;
+.history-item { 
+    background: var(--surface); 
+    margin-bottom: 12px; 
+    padding: 15px; 
+    border-radius: 16px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    border: 1px solid var(--border); 
 }
-/* --- SPLASH SCREEN STYLES --- */
+
+.history-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 20px; 
+}
+
+.history-header h2 { margin: 0; font-weight: 800; color: var(--primary); }
+.history-header button { background: none; border: none; font-size: 1.5rem; color: var(--text-dim); cursor: pointer; }
+
+/* --- SPLASH SCREEN --- */
 #splash-screen {
     position: fixed;
     inset: 0;
@@ -357,8 +376,6 @@ input:checked + .slider:before {
     flex-direction: column;
     align-items: center;
 }
-
-/* Reusing your logo styles here; ensure .logo is defined as discussed */
 
 .loader-bar {
     width: 140px;
@@ -384,22 +401,16 @@ input:checked + .slider:before {
     100% { left: 100%; }
 }
 
-/* Class to fade out splash */
 .splash-fade-out {
     opacity: 0;
     visibility: hidden;
 }
 
-/* --- HISTORY TAG STYLES --- */
-.history-tags {
-    display: flex;
-    gap: 6px;
-    margin-top: 6px;
-}
-
+/* --- HISTORY TAGS --- */
+.history-tags { display: flex; gap: 6px; margin-top: 6px; }
 .tag {
     font-size: 0.75rem;
-    background: rgba(98, 0, 238, 0.08); /* Light version of your primary color */
+    background: rgba(98, 0, 238, 0.08);
     color: var(--primary);
     padding: 2px 8px;
     border-radius: 6px;
@@ -407,8 +418,4 @@ input:checked + .slider:before {
     border: 1px solid rgba(98, 0, 238, 0.1);
 }
 
-.history-info p {
-    margin: 2px 0;
-    font-size: 0.85rem;
-    color: var(--text-dim);
-}
+.history-info p { margin: 2px 0; font-size: 0.85rem; color: var(--text-dim); }
