@@ -1,3 +1,4 @@
+console.log("Filmy Fool Version: 1.0.1");
 // --- CONFIGURATION ---
 const OMDB_API_KEY = "4a4effd2"; 
 const BASE_URL = "https://www.omdbapi.com/";
