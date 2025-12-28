@@ -1,4 +1,4 @@
-const CACHE_NAME = 'filmyfool-v8'; // Increment this every time you push a change
+const CACHE_NAME = 'filmyfool-v9'; // Increment this every time you push a change
 const ASSETS = [
   './',
   './index.html',
