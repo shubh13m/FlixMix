@@ -15,11 +15,25 @@ window.addEventListener('load', () => {
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
 
-    // Fail-safe: Hide splash after 6 seconds regardless of API status
     setTimeout(hideSplash, 6000);
 
-    // Service Worker Logic
+    // --- SERVICE WORKER REGISTRATION & UPDATE DETECTION ---
     if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => {
+            // Check for updates on load
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        // A new version is waiting! Show the banner.
+                        const banner = document.getElementById('update-banner');
+                        if (banner) banner.classList.remove('hidden');
+                    }
+                };
+            };
+        });
+
+        // This triggers when the new Service Worker successfully takes over
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             window.location.reload();
         });
@@ -27,7 +41,6 @@ window.addEventListener('load', () => {
 
     const today = new Date().toDateString();
     
-    // Determine initial view
     if (state.pickedMovie) {
         showReviewScreen();
         hideSplash();
@@ -39,7 +52,7 @@ window.addEventListener('load', () => {
     }
 });
 
-// Helper functions
+// --- HELPER FUNCTIONS ---
 function hideSplash() {
     const splash = document.getElementById('splash-screen');
     if (splash && !splash.classList.contains('splash-fade-out')) {
@@ -47,8 +60,15 @@ function hideSplash() {
     }
 }
 
+// Fixed Update Handler: Talks to Service Worker instead of just refreshing
 function handleUpdate() {
-    window.location.reload(true);
+    navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg && reg.waiting) {
+            reg.waiting.postMessage({ action: 'skipWaiting' });
+        } else {
+            window.location.reload(true);
+        }
+    });
 }
 
 // --- OPTIMIZED FETCHING LOGIC ---
@@ -61,7 +81,6 @@ async function startDailyDiscovery() {
     let foundMovies = [];
 
     try {
-        // Parallel keyword search
         const searchPromises = shuffledKeywords.map(query => 
             fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
@@ -75,10 +94,8 @@ async function startDailyDiscovery() {
             }
         });
 
-        // Unique IDs only (excluding history)
         const uniqueIDs = [...new Set(allPotentialIDs)].filter(id => !state.history.some(h => h.id === id));
 
-        // Parallel detailed fetch
         const detailPromises = uniqueIDs.slice(0, 10).map(id => 
             fetch(`${BASE_URL}?i=${id}&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
@@ -124,6 +141,7 @@ function renderStack() {
     state.dailyQueue.forEach((movie, index) => {
         const card = document.createElement('div');
         card.className = 'movie-card';
+        // Correct z-index for visual stacking
         card.style.zIndex = index; 
         
         const poster = movie.Poster !== "N/A" ? movie.Poster : "https://via.placeholder.com/500x750?text=No+Poster";
@@ -219,6 +237,7 @@ function toggleHistory(show) {
     }
 }
 
+// Fixed History Rendering with Tags
 function renderHistory() {
     const list = document.getElementById('history-list');
     list.innerHTML = '';
@@ -234,7 +253,6 @@ function renderHistory() {
         const div = document.createElement('div');
         div.className = 'history-item';
 
-        // Check for specific switches and create labels/tags
         const familyTag = item.familyFriendly ? '<span class="tag">👨‍👩‍👧 Family</span>' : '';
         const watchAgainTag = item.repeatWatch ? '<span class="tag">🔁 Re-watch</span>' : '';
 
