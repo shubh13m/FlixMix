@@ -1,5 +1,5 @@
 // --- CONFIGURATION ---
-const OMDB_API_KEY = "7ee6529c"; 
+const OMDB_API_KEY = "4a4effd2"; 
 const BASE_URL = "https://www.omdbapi.com/";
 
 // --- STATE MANAGEMENT ---
