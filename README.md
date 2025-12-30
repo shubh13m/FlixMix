@@ -118,10 +118,4 @@ The app uses a custom CSS variable system for easy skinning:
 
 ---
 
-## 📄 License
 
-This project is open-source and available under the MIT License.
-
----
-
-**Would you like me to add a "Troubleshooting" section to this README to help with GitHub Pages deployment issues?**
