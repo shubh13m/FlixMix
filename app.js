@@ -1,7 +1,13 @@
+/**
+ * FlixMix - Movie Discovery App
+ * Version: 1.0.16
+ * Strategy: Multi-Lane Discovery with Recursive Fallback
+ */
+
 // --- INITIALIZE APP ---
 window.addEventListener('load', () => {
-    // Version log for debugging - Update this number manually each time
-    console.log("%c Filmy Fool Version: 1.0.14 ", "color: white; background: #6200ee; padding: 5px; border-radius: 5px; font-weight: bold;");
+    // Version log for debugging
+    console.log("%c Filmy Fool Version: 1.0.16 ", "color: white; background: #6200ee; padding: 5px; border-radius: 5px; font-weight: bold;");
 
     const submitBtn = document.getElementById('submit-review');
     if (submitBtn) submitBtn.onclick = submitReview;
@@ -12,41 +18,32 @@ window.addEventListener('load', () => {
     // --- SERVICE WORKER & SMART UPDATE LOGIC ---
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js').then(reg => {
-            
-            // Check for updates immediately on registration
+            // Check for updates on every load
             reg.update(); 
 
-            // Logic to detect when a new service worker is found/installed
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 installingWorker.onstatechange = () => {
-                    // Trigger pulse as soon as it's 'installed' and waiting
-                    if (installingWorker.state === 'installed') {
-                        if (navigator.serviceWorker.controller) {
-                            console.log("Filmy Fool: New version installed and waiting.");
-                            showUpdatePulse();
-                        }
+                    // Show pulse only if a new worker is successfully installed and waiting
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log("FlixMix: New update ready.");
+                        showUpdatePulse();
                     }
                 };
             };
 
-            // Initial check: if there is already a waiting worker from a previous session
-            if (reg.waiting) {
-                showUpdatePulse();
-            }
+            // If a worker is already waiting from a previous visit
+            if (reg.waiting) showUpdatePulse();
         });
 
-        // Refresh the page once the new SW takes over (skips waiting)
+        // Trigger reload when the new Service Worker takes over
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
-            
-            // Controller Guard: Only reload if the page was already controlled by a worker.
-            // This prevents a first-time visitor from seeing a "double refresh".
             if (navigator.serviceWorker.controller) {
                 refreshing = true;
-                console.log("Filmy Fool: App updated. Reloading...");
-                window.location.reload();
+                console.log("FlixMix: Activating new version...");
+                window.location.reload(true); 
             }
         });
     }
@@ -76,30 +73,37 @@ let state = {
 const OMDB_API_KEY = "4a4effd2"; 
 const BASE_URL = "https://www.omdbapi.com/";
 
+// --- KEYWORD LIBRARIES (Multi-Lane Strategy) ---
+const genreLanes = {
+    pulse: ["Action", "Thriller", "Noir", "Crime", "Heist", "Revenge", "Assassin", "Manhunt", "Warfare", "Espionage", "Vigilante", "Underworld"],
+    wonder: ["Sci-Fi", "Cyberpunk", "Dystopian", "Space", "Multiverse", "Time Travel", "Alien", "Simulation", "Apocalypse", "Galaxy", "Fantasy", "Magic", "Mythology"],
+    thought: ["Mystery", "Psychological", "Conspiracy", "Identity", "Memory", "Mind-bending", "Investigation", "Detective", "Secret", "Documentary", "Biographical", "Historical"],
+    heart: ["Comedy", "Animation", "Family", "Satire", "Drama", "Coming-of-age", "Redemption", "Inspirational", "Romance", "Musical", "Western", "Classic"]
+};
+
 // --- UPDATE HANDLERS ---
 function showUpdatePulse() {
     const updateBtn = document.getElementById('update-btn');
     if (updateBtn) {
         updateBtn.classList.add('update-available');
-        updateBtn.title = "New features available! Click to update.";
+        updateBtn.title = "Update available! Click to refresh.";
     }
 }
 
 window.handleUpdateClick = function() {
     const updateBtn = document.getElementById('update-btn');
-    
     if (updateBtn && updateBtn.classList.contains('update-available')) {
         navigator.serviceWorker.getRegistration().then(reg => {
             if (reg && reg.waiting) {
-                // Send signal to SW to activate immediately
                 reg.waiting.postMessage({ action: 'skipWaiting' });
+            } else if (reg && reg.installing) {
+                alert("New version is still downloading. Please wait a few seconds...");
             } else {
-                // Fallback for edge cases
-                window.location.reload();
+                window.location.reload(true);
             }
         });
     } else {
-        console.log("Filmy Fool is up to date! ✨");
+        console.log("FlixMix is up to date!");
     }
 };
 
@@ -111,22 +115,29 @@ function hideSplash() {
     }
 }
 
-// --- FETCHING LOGIC ---
-async function startDailyDiscovery() {
+// --- FETCHING LOGIC WITH RECURSIVE FALLBACK ---
+async function startDailyDiscovery(retryCount = 0) {
     const container = document.getElementById('card-container');
     if (!container) return;
-    container.innerHTML = '<div class="loading">Curating your mix...</div>';
     
-    const masterKeywords = ["Masterpiece", "Classic", "Noir", "Mystery", "Empire"];
-    const shuffledKeywords = masterKeywords.sort(() => Math.random() - 0.5).slice(0, 3);
-    let foundMovies = [];
+    // Only show loading message on initial try
+    if (retryCount === 0) {
+        container.innerHTML = '<div class="loading">Curating your daily mix...</div>';
+    }
+
+    // Attempt 1: Rating >= 7.0 | Attempt 2: Rating >= 6.0
+    const ratingThreshold = retryCount === 0 ? 7.0 : 6.0;
+    
+    // Pick 3 random lanes for a balanced mix
+    const lanes = Object.keys(genreLanes).sort(() => Math.random() - 0.5).slice(0, 3);
+    const selectedKeywords = lanes.map(lane => {
+        const keywords = genreLanes[lane];
+        return keywords[Math.floor(Math.random() * keywords.length)];
+    });
 
     try {
-        const searchPromises = shuffledKeywords.map(query => 
-            fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`).then(r => {
-                if (r.status === 401) throw new Error("UNAUTHORIZED");
-                return r.json();
-            })
+        const searchPromises = selectedKeywords.map(query => 
+            fetch(`${BASE_URL}?s=${query}&type=movie&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
         
         const results = await Promise.all(searchPromises);
@@ -134,27 +145,39 @@ async function startDailyDiscovery() {
 
         results.forEach(data => {
             if (data.Response === "True") {
-                data.Search.slice(0, 3).forEach(m => allPotentialIDs.push(m.imdbID));
+                // Grab up to 5 IDs per keyword
+                data.Search.slice(0, 5).forEach(m => allPotentialIDs.push(m.imdbID));
             }
         });
 
+        // Filter: No duplicates, No history
         const uniqueIDs = [...new Set(allPotentialIDs)].filter(id => !state.history.some(h => h.id === id));
 
-        const detailPromises = uniqueIDs.slice(0, 8).map(id => 
+        // Fetch detailed data for the top 15 candidates
+        const detailPromises = uniqueIDs.slice(0, 15).map(id => 
             fetch(`${BASE_URL}?i=${id}&apikey=${OMDB_API_KEY}`).then(r => r.json())
         );
 
         const detailedMovies = await Promise.all(detailPromises);
 
-        foundMovies = detailedMovies.filter(m => {
+        let foundMovies = detailedMovies.filter(m => {
             const rating = parseFloat(m.imdbRating);
-            return !isNaN(rating) && rating >= 7.0;
-        }).slice(0, 5);
+            return !isNaN(rating) && rating >= ratingThreshold && m.Poster !== "N/A";
+        });
 
+        // RECURSIVE FALLBACK: If we have less than 5 movies, try once more with wider criteria
+        if (foundMovies.length < 5 && retryCount < 1) {
+            console.warn(`Only found ${foundMovies.length} high-rated movies. Retrying with lower threshold...`);
+            return startDailyDiscovery(retryCount + 1);
+        }
+
+        // Final Error: If even after fallback we have 0 movies
         if (foundMovies.length === 0) throw new Error("EMPTY");
 
-        state.dailyQueue = foundMovies;
+        // Randomize the final results and take 5
+        state.dailyQueue = foundMovies.sort(() => Math.random() - 0.5).slice(0, 5);
         state.queueDate = new Date().toDateString();
+        
         localStorage.setItem('filmyfool_queue', JSON.stringify(state.dailyQueue));
         localStorage.setItem('filmyfool_date', state.queueDate);
 
@@ -164,15 +187,9 @@ async function startDailyDiscovery() {
     } catch (err) {
         console.error("Discovery Error:", err);
         hideSplash();
-        
-        let errorMsg = "Connection slow or no new movies found.";
-        if (err.message === "UNAUTHORIZED") {
-            errorMsg = "API Key error. Check activation email.";
-        }
-
         container.innerHTML = `
             <div class="error">
-                <p>${errorMsg}</p>
+                <p>Could not find enough new movies right now.</p>
                 <button onclick="location.reload();" class="gold-btn" style="width:auto; padding:10px 20px;">Try Again</button>
             </div>`;
     }
@@ -185,11 +202,11 @@ function renderStack() {
     container.innerHTML = '';
 
     if (state.dailyQueue.length === 0) {
-        container.innerHTML = `<div class="loading"><h3>All caught up!</h3><p>Check back tomorrow.</p></div>`;
+        container.innerHTML = `<div class="loading"><h3>All caught up!</h3><p>Check back tomorrow for a new batch.</p></div>`;
         return;
     }
 
-    state.dailyQueue.forEach((movie, index) => {
+    [...state.dailyQueue].forEach((movie, index) => {
         const card = document.createElement('div');
         card.className = 'movie-card';
         card.style.zIndex = index; 
@@ -201,7 +218,7 @@ function renderStack() {
             <div class="movie-footer">
                 <div class="movie-info">
                     <h3>${movie.Title}</h3>
-                    <p>⭐ ${movie.imdbRating} | ${movie.Genre}</p>
+                    <p>⭐ ${movie.imdbRating} | ${movie.Genre.split(',')[0]}</p>
                 </div>
                 <div class="card-actions">
                     <button class="cross-btn" onclick="handleSwipe(false)">✖</button>
@@ -229,6 +246,7 @@ function handleSwipe(isMatch) {
             localStorage.setItem('filmyfool_picked', JSON.stringify(movie));
             showReviewScreen();
         } else {
+            // Track skipped movies in history so they don't reappear immediately
             updateHistory(movie.imdbID, { id: movie.imdbID, title: movie.Title, skipped: true, date: new Date().toLocaleDateString() });
             renderStack(); 
         }
@@ -240,9 +258,12 @@ function showReviewScreen() {
     document.getElementById('review-view').classList.remove('hidden');
     document.getElementById('review-title').innerText = `How was ${state.pickedMovie.Title}?`;
     
+    // Reset review form
     document.querySelectorAll('input[name="star"]').forEach(input => input.checked = false);
-    document.getElementById('btn-family').checked = false;
-    document.getElementById('btn-repeat').checked = false;
+    const familyBtn = document.getElementById('btn-family');
+    const repeatBtn = document.getElementById('btn-repeat');
+    if(familyBtn) familyBtn.checked = false;
+    if(repeatBtn) repeatBtn.checked = false;
 }
 
 function submitReview() {
@@ -253,8 +274,8 @@ function submitReview() {
         id: state.pickedMovie.imdbID,
         title: state.pickedMovie.Title,
         userRating: parseInt(ratingInput.value),
-        familyFriendly: document.getElementById('btn-family').checked,
-        repeatWatch: document.getElementById('btn-repeat').checked,
+        familyFriendly: document.getElementById('btn-family')?.checked || false,
+        repeatWatch: document.getElementById('btn-repeat')?.checked || false,
         date: new Date().toLocaleDateString()
     };
 
@@ -287,16 +308,20 @@ function renderHistory() {
     const list = document.getElementById('history-list');
     if (!list) return;
     list.innerHTML = '';
+    
     const ratedMovies = state.history.filter(h => h.userRating !== undefined);
+    
     if (ratedMovies.length === 0) {
         list.innerHTML = '<p style="text-align:center; color:#999; margin-top:40px;">No reviews yet.</p>';
         return;
     }
+
     [...ratedMovies].reverse().forEach(item => {
         const div = document.createElement('div');
         div.className = 'history-item';
         const familyTag = item.familyFriendly ? '<span class="tag">👨‍👩‍👧 Family</span>' : '';
         const watchAgainTag = item.repeatWatch ? '<span class="tag">🔁 Re-watch</span>' : '';
+        
         div.innerHTML = `
             <div class="history-info">
                 <h4>${item.title}</h4>
