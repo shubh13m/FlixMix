@@ -32,20 +32,19 @@
         <section id="discovery-view">
             <header class="app-header">
                 <h1 class="logo"><span>Filmy</span><span>Fool</span></h1>
-                
-                <div class="nav-controls">
-                    <button id="refresh-btn" onclick="startDailyDiscovery()" title="New Mix" aria-label="Refresh Mix">
-                        <span class="icon">🎲</span>
-                    </button>
-
-                    <button id="update-btn" onclick="handleUpdateClick()" title="App is up to date" aria-label="Update App">
-                        <span class="icon">✨</span>
-                    </button>
-
-                    <button id="view-history-btn" onclick="toggleHistory(true)" aria-label="View History">
-                        <span class="icon">📜</span>
-                    </button>
-                </div>
+                    <div class="nav-controls">
+                        <button id="update-btn" onclick="handleUpdateClick()">
+                            <span class="icon">✨</span>
+                        </button>
+                    
+                        <button id="refresh-btn" onclick="startDailyDiscovery()" aria-label="New Mix">
+                            <span class="icon">🎲</span>
+                        </button>
+                    
+                        <button id="view-history-btn" onclick="toggleHistory(true)">
+                            <span class="icon">📜</span>
+                        </button>
+                    </div>
             </header>
 
             <div id="card-container">
