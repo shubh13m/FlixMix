@@ -87,6 +87,7 @@ html, body {
 }
 
 /* --- NAV BUTTONS --- */
+/* --- NAV BUTTONS --- */
 #view-history-btn, #update-btn, #refresh-btn {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -99,12 +100,29 @@ html, body {
     font-size: 1.2rem;
     cursor: pointer;
     color: var(--text-main);
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-#refresh-btn:active { transform: rotate(180deg); }
+/* Specific Dice Animation on Click */
+#refresh-btn:active { 
+    transform: rotate(180deg) scale(0.9); 
+    background: var(--surface-light);
+}
 
-#update-btn { opacity: 0.3; background: transparent; border-color: transparent; }
+/* Hover effects for Desktop users */
+#view-history-btn:hover, #refresh-btn:hover {
+    background: var(--surface-light);
+    border-color: var(--primary);
+}
+
+/* Update Button Logic (Dimmed when no update) */
+#update-btn { 
+    opacity: 0.3; 
+    background: transparent; 
+    border-color: transparent; 
+    box-shadow: none;
+}
 
 #update-btn.update-available {
     opacity: 1;
